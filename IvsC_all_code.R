@@ -1,4 +1,9 @@
-#I vs C, combined all and cleaned up for final analyses Shawna Rowe 10-Jan-2025
+# Author: Shawna L. Rowe
+# Last Update:  03-Feb-2025
+# Associated manuscript: "Evidence of Rapid Evolution in Herbivory Defense Responses with Conserved Trade-offs in Populations of Medicago polymorpha"
+
+# This code is functional as is. Please see the README for more information on version numbers. 
+
 # ========  Packages  ===========
 library(broom) 
 library(car) 
@@ -38,6 +43,374 @@ plot.mean <- function(x) {
   ymax <- m + se
   return(c(y = m, ymin = ymin, ymax = ymax))
 }
+
+# ========cafeteria/ preference analysis ======== 
+## ==== 2017 cafeteria assay analysis ====
+# Herbivore preference for constitutive plants native v invasive
+ConstRange <- ConstRange %>%
+  select(1, 2, 4, 7:9, 12:14)
+
+ConstRange <- ConstRange %>%
+  rename(LfWt.Initial_Invasive = LfWt_Initial_Invasive, LfWt.Final_Invasive = LfWt_Final_Invasive, LfWt.Initial_Native = LfWt_Initial_Native, LfWt.Final_Native = LfWt_Final_Native)
+
+ConstRange <- ConstRange %>%
+  dplyr::mutate(Eaten_Invasive = LfWt.Initial_Native - LfWt.Final_Native, Eaten_Native = LfWt.Initial_Invasive - LfWt.Final_Invasive, Proportion_Invasive = Eaten_Invasive / (Eaten_Invasive + Eaten_Native), Proportion_Native = Eaten_Native / (Eaten_Invasive + Eaten_Native))
+
+ConstRange <- ConstRange %>%
+  mutate(WinLoss = ifelse(Proportion_Invasive - Proportion_Native > 0, 1, 0))
+
+ConstRange2 <- ConstRange %>%
+  pivot_longer(c(3:8, 10:13),
+               names_to = c(".value", "Range"),
+               names_sep = "_"
+  )
+
+# summarise data. Group_by so we know for each caterpillar and range. Summarise all columns with numeric data and the functions performed are mean and std.error
+ConstRange3 <- ConstRange2 %>%
+  group_by(Herbivore, Range) %>%
+  summarise(across(
+    .cols = where(is.numeric),
+    .fns = list(Mean = ~ mean(., na.rm = TRUE), SE = ~ std.error(., na.rm = TRUE)),
+    .names = "{col}_{fn}"
+  ))
+
+write.table(ConstRange2, file = "~/Desktop/ConstRange_long-2024-04-28.csv", sep = ",", row.names = F)
+
+ConstVInduc <- ConstVInduc %>%
+  rename(LfWt.Initial_Induced = LfWt_Initial_Induced, LfWt.Final_Induced = LfWt_Final_Induced, LfWt.Initial_Const = LfWt_Initial_Const, LfWt.Final_Const = LfWt_Final_Const) %>%
+  mutate(Eaten_Induced = ifelse(LfWt.Initial_Induced - LfWt.Final_Induced < 0, 0, LfWt.Initial_Induced - LfWt.Final_Induced), Eaten_Const = ifelse(LfWt.Initial_Const - LfWt.Final_Const < 0, 0, LfWt.Initial_Const - LfWt.Final_Const), Proportion_Induced = Eaten_Induced / (Eaten_Induced + Eaten_Const), Proportion_Const = Eaten_Const / (Eaten_Induced + Eaten_Const))
+
+ConstVInduc2 <- ConstVInduc %>%
+  pivot_longer(c(2:7, 10:13),
+               names_to = c(".value", "Defense"),
+               names_sep = "_"
+  )
+
+# summarise data. Group_by so we know for each caterpillar and range. Summarise all columns with numeric data and the functions performed are mean and std.error
+ConstVInduc3 <- ConstVInduc2 %>%
+  group_by(Herbivore, Range, Defense) %>%
+  summarise(across(
+    .cols = where(is.numeric),
+    .fns = list(Mean = ~ mean(., na.rm = TRUE), SE = ~ std.error(., na.rm = TRUE)),
+    .names = "{col}_{fn}"
+  ))
+
+#Figure 3: graph proportion eaten by range with caterpillar facet
+(old_IC_proportion_range <- ggplot(ConstVInduc3, aes(x = Range, y = Proportion_Mean, color = Defense)) +
+    geom_point() +
+    geom_errorbar(aes(ymin = Proportion_Mean - Proportion_SE, ymax = Proportion_Mean + Proportion_SE, width = 0.25)) +
+    guides(size = "none") +
+    theme_bw() +
+    facet_wrap(~Herbivore) +
+    labs(
+      title = "Feeding Preference for Constitutive vs Induced Plants",
+      y = "Proportion Consumed",
+      x = "",
+      color = "Defense"
+    ) +
+    scale_color_manual(values = c("Const" = "#14C7BA", "Induced" = "#B323A5"),
+                       labels = c("Const" = "Constitutive", "Induced" = "Induced")) + # Specify colorblind-friendly colors
+    scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
+    facet_wrap(~ Herbivore, labeller = as_labeller(c("Soybean" = "Soybean Looper", "Velvetbean" = "Velvetbean Caterpillar"))) +
+    ylim(0.25, 0.75) + 
+    geom_vline(xintercept = 1.5, linetype = "dashed", color = "black") +  # Corrected ylim placement
+    theme(
+      strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
+      axis.text.x = element_text(size = 16),
+      axis.text.y = element_text(size = 16),
+      axis.title.x = element_text(size = 20),
+      axis.title.y = element_text(size = 20),
+      plot.title = element_text(size = 22, hjust = 0.5),
+      legend.position = c(0.9,0.9),
+      legend.background = element_rect(colour = "black", fill = "white", linetype = "solid"),
+      #remove legend title
+      legend.title = element_blank(),
+      legend.text = element_text(size = 14), panel.grid.major = element_blank(), panel.grid.minor = element_blank()
+    )
+)
+ggsave("Const2017_cafeteria_aug2024.jpg", old_IC_proportion_range, width = 3300, height = 2100, units = "px", dpi = 300)
+
+# save in E and E format. 600 dpi PDF with an min 1800 px canvas size
+ggsave("Figure3_const2017_cafeteria_aug2024.pdf", old_IC_proportion_range, width = 6600, height = 4200, units = "px", dpi = 600)
+
+# ====== Induced2022 cafeteria ======
+# create win-loss column in binary
+# winloss column created by subtracting the
+ICpref$win_loss <- ifelse(ICpref$WinnerTest > 0, 1, 0)
+
+# select columns needed for analysis in ICpref data (all induced data)
+ICpref2 <- ICpref %>%
+  select(Plate_number, Invasive_accession, Native_accession, Pair_number, Caterpillar, Replicate, prop_wtmg_Invasive, Prop_wtmg_Native, win_loss)
+
+ICpref2a <- ICpref2 %>%
+  select(Plate_number, Invasive_accession, Native_accession, Pair_number, Caterpillar, Replicate, win_loss)
+
+# names_pattern = "(.*)_accession" removes the "_accession" bit from any matching pattern
+ICpref3a <- ICpref2a %>%
+  pivot_longer(cols = c(Invasive_accession, Native_accession), names_to = "Range", values_to = "Accession", names_pattern = "(.*)_accession")
+
+ICpref2b <- ICpref2 %>%
+  select(Plate_number, Pair_number, Caterpillar, Replicate, prop_wtmg_Invasive, Prop_wtmg_Native, win_loss)
+
+ICpref3b <- ICpref2b %>%
+  pivot_longer(cols = c(prop_wtmg_Invasive, Prop_wtmg_Native), names_to = "Range", names_prefix = "[Pp](.*)_wtmg_", values_to = "ProportionEaten")
+
+ICpref3 <- full_join(ICpref3a, ICpref3b)
+
+# change all values of 1 (100% tissue eaten) to 0.9999999 for analysis
+ICpref3 <- ICpref3 %>%
+  mutate(ProportionEaten = ifelse(ProportionEaten > 0.9999, 0.9999999, ProportionEaten))
+
+ICpref3 <- ICpref3 %>%
+  filter(ProportionEaten > 0)
+
+ICpref3$Replicate <- as.factor(ICpref3$Replicate)
+
+# summarise data. Group_by so we know for each caterpillar and range. Summarise all columns with numeric data and the functions performed are mean and std.error
+ICpref4 <- ICpref3 %>%
+  group_by(Caterpillar, Range) %>%
+  summarise(across(
+    .cols = where(is.numeric),
+    .fns = list(Mean = ~ mean(., na.rm = TRUE), SE = ~ std.error(., na.rm = TRUE)),
+    .names = "{col}_{fn}"
+  ))
+
+# graph proportion eaten by range with caterpillar facet -- winning figure
+(ICpref_proportion_range <- ggplot(ICpref4, aes(x = Range, y = ProportionEaten_Mean)) +
+    labs(title = "Proportion of Leaf Tissue Eaten by Herbivore Range", x = expression(italic("M. polymorpha") ~ "Range"), y = "Proportion Eaten") +
+    geom_point() +
+    geom_errorbar(aes(ymin = ProportionEaten_Mean - ProportionEaten_SE, ymax = ProportionEaten_Mean + ProportionEaten_SE, width = 0.25)) +
+    theme_bw() +
+    facet_wrap(~Caterpillar, labeller = as_labeller(custom_labels)) +
+    scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
+    ylim(0.75, 0.95) +
+    scale_color_grey() +
+    theme(
+      strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
+      axis.text = element_text(size = 16),
+      axis.title = element_text(size = 20),
+      plot.title = element_text(size = 22, hjust = 0.5),
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16), panel.grid.major = element_blank(), panel.grid.minor = element_blank()
+    )
+)
+
+##---- Figure 2: Panel figure for Cafeteria data Oct24 ----
+#graph proportion eaten by each caterpillar within each range. Facet by range and have the x-axis have the herbivore oct24
+(ICpref_proportion_caterpillar <- ggplot(ICpref4, aes(x = Caterpillar, y = ProportionEaten_Mean)) +
+   geom_point() +
+   geom_errorbar(aes(ymin = ProportionEaten_Mean - ProportionEaten_SE, ymax = ProportionEaten_Mean + ProportionEaten_SE, width = 0.25)) +
+   labs(title = "Proportion of Leaf Tissue Eaten by Herbivore", x = "", y = "Proportion Consumed") +
+   theme_bw() +
+   facet_wrap(~Range, labeller = as_labeller(c("Invasive" = "Familiar", "Native" = "Unfamiliar"))) +
+   scale_x_discrete(labels = c("soybean" = "Soybean \nLooper", "velvetbean" = "Velvetbean \nCaterpillar")) +
+   ylim(0.75, 0.95) +
+   theme_bw() +
+   scale_colour_grey() +
+   theme(strip.text.x = element_text(color = "black", size = 16, face = "bold")) +
+   theme(legend.position = "none") +
+   theme(strip.text = element_text(size = 16, face = "bold")) +
+   theme(axis.text = element_text(size = 14)) +
+   theme(axis.title = element_text(size = 16)) +
+   theme(plot.title = element_text(size = 18)) +
+   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()))
+
+#Graph the cafeteria data. Facet by caterpillar type and within the panels have familiar vs unfamiliar for only the constitutive tissue oct24
+(cafeteria_plot_const <- ggplot(ConstRange2, aes(x = Range, y = Proportion)) +
+    stat_summary(fun.data = plot.mean, geom = "errorbar", width = 0.25) +
+    stat_summary(fun = mean, geom = "point", size = 2, color = "black", shape = 16, position = position_dodge(width = 0.35)) + # Adds the mean point
+    guides(size = "none") +
+    facet_wrap(~Herbivore) +
+    labs(
+      title = "Feeding Preference for Constitutive Plants",
+      y = "Proportion Consumed",
+      x = "",
+      color = "Defense"
+    ) +
+    scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
+    facet_wrap(~ Herbivore, labeller = as_labeller(c("Soybean" = "Soybean Looper", "Velvetbean" = "Velvetbean Caterpillar"))) +
+    ylim(0.4, 0.6) +
+    theme_bw() +
+    scale_colour_grey() +
+    theme(strip.text.x = element_text(color = "black", size = 16, face = "bold")) +
+    theme(legend.position = "none") +
+    theme(strip.text = element_text(size = 16, face = "bold")) +
+    theme(axis.text = element_text(size = 14)) +
+    theme(axis.title = element_text(size = 16)) +
+    theme(plot.title = element_text(size = 18)) +
+    theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()))
+
+#Graph the cafeteria data. Facet by caterpillar type and within the panels have familiar vs unfamiliar for only the induced tissue oct24
+(cafeteria_plot_induc <- ggplot(ICpref3, aes(x = Range, y = ProportionEaten)) +
+    stat_summary(fun.data = plot.mean, geom = "errorbar", width = 0.25) +
+    stat_summary(fun = mean, geom = "point", size = 2, color = "black", shape = 16, position = position_dodge(width = 0.35)) + # Adds the mean point
+    guides(size = "none") +
+    theme_bw() +
+    facet_wrap(~Caterpillar) +
+    labs(
+      title = "Feeding Preference for Induced Plants",
+      y = "Proportion Consumed",
+      x = "",
+      color = "Defense"
+    ) +
+    scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
+    facet_wrap(~ Caterpillar, labeller = as_labeller(c("soybean" = "Soybean Looper", "velvetbean" = "Velvetbean Caterpillar"))) +
+    ylim(0.5, 0.7) + # Corrected ylim placement
+    theme_bw() +
+    scale_colour_grey() +
+    theme(strip.text.x = element_text(color = "black", size = 16, face = "bold")) +
+    theme(legend.position = "none") +
+    theme(strip.text = element_text(size = 16, face = "bold")) +
+    theme(axis.text = element_text(size = 14)) +
+    theme(axis.title = element_text(size = 16)) +
+    theme(plot.title = element_text(size = 18)) +
+    theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()))
+
+#panel of cafeteria plots: cafeteria_plot_const, cafeteria_plot_induc, and ICpref_proportion_caterpillar
+(cafeteria_panel <- cafeteria_plot_const / cafeteria_plot_induc / ICpref_proportion_caterpillar + plot_annotation(tag_levels = "A") & theme(plot.tag = element_text(size = 16)))
+
+ggsave("cafeteria_panel_oct24.jpg", cafeteria_panel, width = 2900, height = 3200, units = "px", dpi = 300)
+## save in E and E format. 600 dpi PDF with a min 1800 px canvas size
+ggsave("Figure2_cafeteria_panel_oct24.pdf", cafeteria_panel, width = 5200, height = 6000, units = "px", dpi = 600)
+
+old_IC_prop.lmer <- lmer(Proportion ~ Range * Herbivore * Defense + (1 | Herbivore / Pair), data = ConstVInduc2)
+old_IC_prop2.lm <- lm(Proportion ~ Range * Herbivore * Defense, data = ConstVInduc2)
+
+# summary of the model
+summary(old_IC_prop.lmer)
+
+Anova(old_IC_prop.lmer)
+# Analysis of Deviance Table (Type II Wald chisquare tests)
+# Response: Proportion
+# Chisq Df Pr(>Chisq)
+# Range                    0.0000  1  1.0000000
+# Herbivore                0.0000  1  1.0000000
+# Defense                  0.4780  1  0.4893117
+# Range:Herbivore          0.0000  1  1.0000000
+# Range:Defense           12.2607  1  0.0004626 *** # look at this interaction term more below
+#   Herbivore:Defense        0.1337  1  0.7146619
+# Range:Herbivore:Defense  0.8946  1  0.3442230
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+emmeans(old_IC_prop.lmer, pairwise ~ Defense | Range)
+emm2 <- emmeans(old_IC_prop.lmer, specs = pairwise ~ f1 | f2, type = "response")
+emm2
+
+tidy(joint_tests(old_IC_prop.lmer, by = "Defense"))
+# # A tibble: 6 × 6
+# term            Defense num.df  den.df statistic p.value
+# <chr>           <chr>    <dbl>   <dbl>     <dbl>   <dbl>
+#   1 Range           Const        1     152     6.13   0.0144
+# 2 Range           Induced      1     152     6.13   0.0144
+# 3 Herbivore       Const        1 3939992     0      0.984
+# 4 Herbivore       Induced      1 3939992     0      0.984
+# 5 Range:Herbivore Const        1     152     0.447  0.505
+# 6 Range:Herbivore Induced      1     152     0.447  0.505
+
+tidy(joint_tests(old_IC_prop.lmer, by = "Range")) #
+# # A tibble: 6 × 6
+# term              Range    num.df  den.df statistic p.value
+# <chr>             <chr>     <dbl>   <dbl>     <dbl>   <dbl>
+#   1 Herbivore         Invasive      1 1969996     0     1
+# 2 Herbivore         Native        1 1969996     0     1
+# 3 Defense           Invasive      1      76     8.79  0.00404 #difference between ranges in defense induction? or constitutive....
+# 4 Defense           Native        1      76     3.95  0.0505 # these results are expected
+# 5 Herbivore:Defense Invasive      1      76     0.86  0.357 #no diff bw herbs in range
+# 6 Herbivore:Defense Native        1      76     0.168 0.683
+
+tidy(joint_tests(old_IC_prop.lmer, by = "Herbivore"))
+# # A tibble: 6 × 6
+# term          Herbivore  num.df den.df statistic p.value
+# <chr>         <chr>       <dbl>  <dbl>     <dbl>   <dbl>
+#   1 Range         Soybean         1     76     0     1.00
+# 2 Range         Velvetbean      1     76     0     1
+# 3 Defense       Soybean         1     76     0.053 0.818
+# 4 Defense       Velvetbean      1     76     0.559 0.457
+# 5 Range:Defense Soybean         1     76     3.27  0.0747 #marginal in the interaction --
+# 6 Range:Defense Velvetbean      1     76     9.89  0.00237 # strong difference in the interaction for velvetbean: to the extent we see significant difference in the interaction, it seems to be more driven by the velvetbean caterpillar than the looper
+
+leveneTest((Proportion) ~ Range, data = subset(ConstVInduc2, Defense == "Const")) #  checking the variances
+
+
+leveneTest((Proportion) ~ Range, data = subset(ConstVInduc2, Defense == "Induced"))
+
+## ======== 2022 cafeteria analysis ========
+# create win-loss column in binary
+# winloss column created by subtracting the
+ICpref$win_loss <- ifelse(ICpref$WinnerTest > 0, 1, 0)
+
+# select columns needed for analysis in ICpref data (all induced data)
+ICpref2 <- ICpref %>%
+  select(Plate_number, Invasive_accession, Native_accession, Pair_number, Caterpillar, Replicate, prop_wtmg_Invasive, Prop_wtmg_Native, win_loss)
+
+ICpref2a <- ICpref2 %>%
+  select(Plate_number, Invasive_accession, Native_accession, Pair_number, Caterpillar, Replicate, win_loss)
+
+# names_pattern = "(.*)_accession" removes the "_accession" bit from any matching pattern
+ICpref3a <- ICpref2a %>%
+  pivot_longer(cols = c(Invasive_accession, Native_accession), names_to = "Range", values_to = "Accession", names_pattern = "(.*)_accession")
+
+ICpref2b <- ICpref2 %>%
+  select(Plate_number, Pair_number, Caterpillar, Replicate, prop_wtmg_Invasive, Prop_wtmg_Native, win_loss)
+
+ICpref3b <- ICpref2b %>%
+  pivot_longer(cols = c(prop_wtmg_Invasive, Prop_wtmg_Native), names_to = "Range", names_prefix = "[Pp](.*)_wtmg_", values_to = "ProportionEaten")
+
+ICpref3 <- full_join(ICpref3a, ICpref3b)
+
+# change all values of 1 (100% tissue eaten) to 0.9999999 for analysis
+ICpref3 <- ICpref3 %>%
+  mutate(ProportionEaten = ifelse(ProportionEaten > 0.9999, 0.9999999, ProportionEaten))
+
+ICpref3 <- ICpref3 %>%
+  filter(ProportionEaten > 0)
+
+ICpref3$Replicate <- as.factor(ICpref3$Replicate)
+
+# summarise data. Group_by so we know for each caterpillar and range. Summarise all columns with numeric data and the functions performed are mean and std.error
+ICpref4 <- ICpref3 %>%
+  group_by(Caterpillar, Range) %>%
+  summarise(across(
+    .cols = where(is.numeric),
+    .fns = list(Mean = ~ mean(., na.rm = TRUE), SE = ~ std.error(., na.rm = TRUE)),
+    .names = "{col}_{fn}"
+  ))
+
+# Custom labelling function
+custom_labels <- function(x) {
+  x <- as.character(x) # Ensure the levels are character strings
+  x[x == "soybean"] <- "Soybean Looper" # Change 'soybean' to 'Soybean Looper'
+  x[x == "velvetbean"] <- "Velvetbean Caterpillar" # Change 'velvetbean' to 'Velvetbean Caterpillar'
+  # Custom labelling function
+  x[x == "Invasive"] <- "Familiar" # Change 'Invasive' to 'Familiar'
+  x[x == "Native"] <- "Unfamiliar" # Change 'Native' to 'Unfamiliar'
+  return(x)
+}
+
+ICpref_wl.glmer <- glmer(win_loss ~ Range * Caterpillar + (1 | Pair_number), family = binomial(link = logit), ICpref3)
+
+Anova(ICpref_wl.glmer)
+# Analysis of Deviance Table (Type II Wald chisquare tests)
+#
+# Response: win_loss
+# Chisq Df Pr(>Chisq)
+# Range             0.0021  1     0.9638
+# Caterpillar       0.7317  1     0.3923
+# Range:Caterpillar 0.0010  1     0.9742
+
+ICpref_prop.lmer <- lmer(ProportionEaten ~ Range * Caterpillar + (1 | Pair_number), data = ICpref3)
+
+Anova(ICpref_prop.lmer)
+# Analysis of Deviance Table (Type II Wald chisquare tests)
+#
+# Response: ProportionEaten
+# Chisq Df Pr(>Chisq)
+# Range              3.0604  1    0.08022 .  # range is marginally significant
+# Caterpillar       26.3462  1  2.854e-07 *** #caterpillar type is significant for amount eaten
+#   Range:Caterpillar  1.3939  1    0.23775
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 # ======== Protein Data analysis ========
 ## ======= First ========
@@ -259,374 +632,6 @@ ggsave("AssayFig14august24_all_bioc.jpg", figure3, width = 2900, height = 3200, 
 
 # save in E and E preferred format. 600 dpi PDF with an 1800 px canvas size 
 ggsave("Figure4_assayFig14august24_all_bioc.pdf", figure3, width = 5200, height = 6000, units = "px", dpi = 600)
-# ========cafeteria/ preference analysis ======== 
-## ==== 2017 cafeteria assay analysis ====
-# note: newer teria assay analysis should be run first.
-# Herbivore preference for constitutive plants native v invasive
-ConstRange <- ConstRange %>%
-  select(1, 2, 4, 7:9, 12:14)
-
-ConstRange <- ConstRange %>%
-  rename(LfWt.Initial_Invasive = LfWt_Initial_Invasive, LfWt.Final_Invasive = LfWt_Final_Invasive, LfWt.Initial_Native = LfWt_Initial_Native, LfWt.Final_Native = LfWt_Final_Native)
-
-ConstRange <- ConstRange %>%
-  dplyr::mutate(Eaten_Invasive = LfWt.Initial_Native - LfWt.Final_Native, Eaten_Native = LfWt.Initial_Invasive - LfWt.Final_Invasive, Proportion_Invasive = Eaten_Invasive / (Eaten_Invasive + Eaten_Native), Proportion_Native = Eaten_Native / (Eaten_Invasive + Eaten_Native))
-
-ConstRange <- ConstRange %>%
-  mutate(WinLoss = ifelse(Proportion_Invasive - Proportion_Native > 0, 1, 0))
-
-ConstRange2 <- ConstRange %>%
-  pivot_longer(c(3:8, 10:13),
-    names_to = c(".value", "Range"),
-    names_sep = "_"
-  )
-
-# summarise data. Group_by so we know for each caterpillar and range. Summarise all columns with numeric data and the functions performed are mean and std.error
-ConstRange3 <- ConstRange2 %>%
-  group_by(Herbivore, Range) %>%
-  summarise(across(
-    .cols = where(is.numeric),
-    .fns = list(Mean = ~ mean(., na.rm = TRUE), SE = ~ std.error(., na.rm = TRUE)),
-    .names = "{col}_{fn}"
-  ))
-
-write.table(ConstRange2, file = "~/Desktop/ConstRange_long-2024-04-28.csv", sep = ",", row.names = F)
-
-ConstVInduc <- ConstVInduc %>%
-  rename(LfWt.Initial_Induced = LfWt_Initial_Induced, LfWt.Final_Induced = LfWt_Final_Induced, LfWt.Initial_Const = LfWt_Initial_Const, LfWt.Final_Const = LfWt_Final_Const) %>%
-  mutate(Eaten_Induced = ifelse(LfWt.Initial_Induced - LfWt.Final_Induced < 0, 0, LfWt.Initial_Induced - LfWt.Final_Induced), Eaten_Const = ifelse(LfWt.Initial_Const - LfWt.Final_Const < 0, 0, LfWt.Initial_Const - LfWt.Final_Const), Proportion_Induced = Eaten_Induced / (Eaten_Induced + Eaten_Const), Proportion_Const = Eaten_Const / (Eaten_Induced + Eaten_Const))
-
-ConstVInduc2 <- ConstVInduc %>%
-  pivot_longer(c(2:7, 10:13),
-               names_to = c(".value", "Defense"),
-               names_sep = "_"
-  )
-
-# summarise data. Group_by so we know for each caterpillar and range. Summarise all columns with numeric data and the functions performed are mean and std.error
-ConstVInduc3 <- ConstVInduc2 %>%
-  group_by(Herbivore, Range, Defense) %>%
-  summarise(across(
-    .cols = where(is.numeric),
-    .fns = list(Mean = ~ mean(., na.rm = TRUE), SE = ~ std.error(., na.rm = TRUE)),
-    .names = "{col}_{fn}"
-  ))
-
-#Figure 3: graph proportion eaten by range with caterpillar facet
-(old_IC_proportion_range <- ggplot(ConstVInduc3, aes(x = Range, y = Proportion_Mean, color = Defense)) +
-    geom_point() +
-    geom_errorbar(aes(ymin = Proportion_Mean - Proportion_SE, ymax = Proportion_Mean + Proportion_SE, width = 0.25)) +
-    guides(size = "none") +
-    theme_bw() +
-    facet_wrap(~Herbivore) +
-    labs(
-      title = "Feeding Preference for Constitutive vs Induced Plants",
-      y = "Proportion Consumed",
-      x = "",
-      color = "Defense"
-    ) +
-    scale_color_manual(values = c("Const" = "#14C7BA", "Induced" = "#B323A5"),
-                       labels = c("Const" = "Constitutive", "Induced" = "Induced")) + # Specify colorblind-friendly colors
-    scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
-    facet_wrap(~ Herbivore, labeller = as_labeller(c("Soybean" = "Soybean Looper", "Velvetbean" = "Velvetbean Caterpillar"))) +
-    ylim(0.25, 0.75) + 
-    geom_vline(xintercept = 1.5, linetype = "dashed", color = "black") +  # Corrected ylim placement
-    theme(
-      strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
-      axis.text.x = element_text(size = 16),
-      axis.text.y = element_text(size = 16),
-      axis.title.x = element_text(size = 20),
-      axis.title.y = element_text(size = 20),
-      plot.title = element_text(size = 22, hjust = 0.5),
-      legend.position = c(0.9,0.9),
-      legend.background = element_rect(colour = "black", fill = "white", linetype = "solid"),
-      #remove legend title
-      legend.title = element_blank(),
-      legend.text = element_text(size = 14), panel.grid.major = element_blank(), panel.grid.minor = element_blank()
-    )
-)
-ggsave("Const2017_cafeteria_aug2024.jpg", old_IC_proportion_range, width = 3300, height = 2100, units = "px", dpi = 300)
-
-# save in E and E format. 600 dpi PDF with an min 1800 px canvas size
-ggsave("Figure3_const2017_cafeteria_aug2024.pdf", old_IC_proportion_range, width = 6600, height = 4200, units = "px", dpi = 600)
-
-# ====== Induced2022 cafeteria ======
-# create win-loss column in binary
-# winloss column created by subtracting the
-ICpref$win_loss <- ifelse(ICpref$WinnerTest > 0, 1, 0)
-
-# select columns needed for analysis in ICpref data (all induced data)
-ICpref2 <- ICpref %>%
-  select(Plate_number, Invasive_accession, Native_accession, Pair_number, Caterpillar, Replicate, prop_wtmg_Invasive, Prop_wtmg_Native, win_loss)
-
-ICpref2a <- ICpref2 %>%
-  select(Plate_number, Invasive_accession, Native_accession, Pair_number, Caterpillar, Replicate, win_loss)
-
-# names_pattern = "(.*)_accession" removes the "_accession" bit from any matching pattern
-ICpref3a <- ICpref2a %>%
-  pivot_longer(cols = c(Invasive_accession, Native_accession), names_to = "Range", values_to = "Accession", names_pattern = "(.*)_accession")
-
-ICpref2b <- ICpref2 %>%
-  select(Plate_number, Pair_number, Caterpillar, Replicate, prop_wtmg_Invasive, Prop_wtmg_Native, win_loss)
-
-ICpref3b <- ICpref2b %>%
-  pivot_longer(cols = c(prop_wtmg_Invasive, Prop_wtmg_Native), names_to = "Range", names_prefix = "[Pp](.*)_wtmg_", values_to = "ProportionEaten")
-
-ICpref3 <- full_join(ICpref3a, ICpref3b)
-
-# change all values of 1 (100% tissue eaten) to 0.9999999 for analysis
-ICpref3 <- ICpref3 %>%
-  mutate(ProportionEaten = ifelse(ProportionEaten > 0.9999, 0.9999999, ProportionEaten))
-
-ICpref3 <- ICpref3 %>%
-  filter(ProportionEaten > 0)
-
-ICpref3$Replicate <- as.factor(ICpref3$Replicate)
-
-# summarise data. Group_by so we know for each caterpillar and range. Summarise all columns with numeric data and the functions performed are mean and std.error
-ICpref4 <- ICpref3 %>%
-  group_by(Caterpillar, Range) %>%
-  summarise(across(
-    .cols = where(is.numeric),
-    .fns = list(Mean = ~ mean(., na.rm = TRUE), SE = ~ std.error(., na.rm = TRUE)),
-    .names = "{col}_{fn}"
-  ))
-
-# graph proportion eaten by range with caterpillar facet -- winning figure
-(ICpref_proportion_range <- ggplot(ICpref4, aes(x = Range, y = ProportionEaten_Mean)) +
-    labs(title = "Proportion of Leaf Tissue Eaten by Herbivore Range", x = expression(italic("M. polymorpha") ~ "Range"), y = "Proportion Eaten") +
-    geom_point() +
-    geom_errorbar(aes(ymin = ProportionEaten_Mean - ProportionEaten_SE, ymax = ProportionEaten_Mean + ProportionEaten_SE, width = 0.25)) +
-    theme_bw() +
-    facet_wrap(~Caterpillar, labeller = as_labeller(custom_labels)) +
-    scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
-    ylim(0.75, 0.95) +
-    scale_color_grey() +
-    theme(
-      strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
-      axis.text = element_text(size = 16),
-      axis.title = element_text(size = 20),
-      plot.title = element_text(size = 22, hjust = 0.5),
-      legend.title = element_text(size = 18),
-      legend.text = element_text(size = 16), panel.grid.major = element_blank(), panel.grid.minor = element_blank()
-    )
-)
-
-##---- Figure 2: Panel figure for Cafeteria data Oct24 ----
-#graph proportion eaten by each caterpillar within each range. Facet by range and have the x-axis have the herbivore oct24
-(ICpref_proportion_caterpillar <- ggplot(ICpref4, aes(x = Caterpillar, y = ProportionEaten_Mean)) +
-    geom_point() +
-    geom_errorbar(aes(ymin = ProportionEaten_Mean - ProportionEaten_SE, ymax = ProportionEaten_Mean + ProportionEaten_SE, width = 0.25)) +
-    labs(title = "Proportion of Leaf Tissue Eaten by Herbivore", x = "", y = "Proportion Consumed") +
-    theme_bw() +
-    facet_wrap(~Range, labeller = as_labeller(c("Invasive" = "Familiar", "Native" = "Unfamiliar"))) +
-    scale_x_discrete(labels = c("soybean" = "Soybean \nLooper", "velvetbean" = "Velvetbean \nCaterpillar")) +
-    ylim(0.75, 0.95) +
-   theme_bw() +
-   scale_colour_grey() +
-   theme(strip.text.x = element_text(color = "black", size = 16, face = "bold")) +
-   theme(legend.position = "none") +
-   theme(strip.text = element_text(size = 16, face = "bold")) +
-   theme(axis.text = element_text(size = 14)) +
-   theme(axis.title = element_text(size = 16)) +
-   theme(plot.title = element_text(size = 18)) +
-   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()))
-
-#Graph the cafeteria data. Facet by caterpillar type and within the panels have familiar vs unfamiliar for only the constitutive tissue oct24
-(cafeteria_plot_const <- ggplot(ConstRange2, aes(x = Range, y = Proportion)) +
-    stat_summary(fun.data = plot.mean, geom = "errorbar", width = 0.25) +
-    stat_summary(fun = mean, geom = "point", size = 2, color = "black", shape = 16, position = position_dodge(width = 0.35)) + # Adds the mean point
-    guides(size = "none") +
-    facet_wrap(~Herbivore) +
-    labs(
-      title = "Feeding Preference for Constitutive Plants",
-      y = "Proportion Consumed",
-      x = "",
-      color = "Defense"
-    ) +
-    scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
-    facet_wrap(~ Herbivore, labeller = as_labeller(c("Soybean" = "Soybean Looper", "Velvetbean" = "Velvetbean Caterpillar"))) +
-    ylim(0.4, 0.6) +
-    theme_bw() +
-    scale_colour_grey() +
-    theme(strip.text.x = element_text(color = "black", size = 16, face = "bold")) +
-    theme(legend.position = "none") +
-    theme(strip.text = element_text(size = 16, face = "bold")) +
-    theme(axis.text = element_text(size = 14)) +
-    theme(axis.title = element_text(size = 16)) +
-    theme(plot.title = element_text(size = 18)) +
-    theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()))
-    
-#Graph the cafeteria data. Facet by caterpillar type and within the panels have familiar vs unfamiliar for only the induced tissue oct24
-(cafeteria_plot_induc <- ggplot(ICpref3, aes(x = Range, y = ProportionEaten)) +
-    stat_summary(fun.data = plot.mean, geom = "errorbar", width = 0.25) +
-    stat_summary(fun = mean, geom = "point", size = 2, color = "black", shape = 16, position = position_dodge(width = 0.35)) + # Adds the mean point
-    guides(size = "none") +
-    theme_bw() +
-    facet_wrap(~Caterpillar) +
-    labs(
-      title = "Feeding Preference for Induced Plants",
-      y = "Proportion Consumed",
-      x = "",
-      color = "Defense"
-    ) +
-    scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
-    facet_wrap(~ Caterpillar, labeller = as_labeller(c("soybean" = "Soybean Looper", "velvetbean" = "Velvetbean Caterpillar"))) +
-    ylim(0.5, 0.7) + # Corrected ylim placement
-    theme_bw() +
-    scale_colour_grey() +
-    theme(strip.text.x = element_text(color = "black", size = 16, face = "bold")) +
-    theme(legend.position = "none") +
-    theme(strip.text = element_text(size = 16, face = "bold")) +
-    theme(axis.text = element_text(size = 14)) +
-    theme(axis.title = element_text(size = 16)) +
-    theme(plot.title = element_text(size = 18)) +
-    theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()))
-
-#panel of cafeteria plots: cafeteria_plot_const, cafeteria_plot_induc, and ICpref_proportion_caterpillar
-(cafeteria_panel <- cafeteria_plot_const / cafeteria_plot_induc / ICpref_proportion_caterpillar + plot_annotation(tag_levels = "A") & theme(plot.tag = element_text(size = 16)))
-
-ggsave("cafeteria_panel_oct24.jpg", cafeteria_panel, width = 2900, height = 3200, units = "px", dpi = 300)
-## save in E and E format. 600 dpi PDF with a min 1800 px canvas size
-ggsave("Figure2_cafeteria_panel_oct24.pdf", cafeteria_panel, width = 5200, height = 6000, units = "px", dpi = 600)
-
-old_IC_prop.lmer <- lmer(Proportion ~ Range * Herbivore * Defense + (1 | Herbivore / Pair), data = ConstVInduc2)
-old_IC_prop2.lm <- lm(Proportion ~ Range * Herbivore * Defense, data = ConstVInduc2)
-
-# summary of the model
-summary(old_IC_prop.lmer)
-
-Anova(old_IC_prop.lmer)
-# Analysis of Deviance Table (Type II Wald chisquare tests)
-# Response: Proportion
-# Chisq Df Pr(>Chisq)
-# Range                    0.0000  1  1.0000000
-# Herbivore                0.0000  1  1.0000000
-# Defense                  0.4780  1  0.4893117
-# Range:Herbivore          0.0000  1  1.0000000
-# Range:Defense           12.2607  1  0.0004626 *** # look at this interaction term more below
-#   Herbivore:Defense        0.1337  1  0.7146619
-# Range:Herbivore:Defense  0.8946  1  0.3442230
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-emmeans(old_IC_prop.lmer, pairwise ~ Defense | Range)
-emm2 <- emmeans(old_IC_prop.lmer, specs = pairwise ~ f1 | f2, type = "response")
-emm2
-
-tidy(joint_tests(old_IC_prop.lmer, by = "Defense"))
-# # A tibble: 6 × 6
-# term            Defense num.df  den.df statistic p.value
-# <chr>           <chr>    <dbl>   <dbl>     <dbl>   <dbl>
-#   1 Range           Const        1     152     6.13   0.0144
-# 2 Range           Induced      1     152     6.13   0.0144
-# 3 Herbivore       Const        1 3939992     0      0.984
-# 4 Herbivore       Induced      1 3939992     0      0.984
-# 5 Range:Herbivore Const        1     152     0.447  0.505
-# 6 Range:Herbivore Induced      1     152     0.447  0.505
-
-tidy(joint_tests(old_IC_prop.lmer, by = "Range")) #
-# # A tibble: 6 × 6
-# term              Range    num.df  den.df statistic p.value
-# <chr>             <chr>     <dbl>   <dbl>     <dbl>   <dbl>
-#   1 Herbivore         Invasive      1 1969996     0     1
-# 2 Herbivore         Native        1 1969996     0     1
-# 3 Defense           Invasive      1      76     8.79  0.00404 #difference between ranges in defense induction? or constitutive....
-# 4 Defense           Native        1      76     3.95  0.0505 # these results are expected
-# 5 Herbivore:Defense Invasive      1      76     0.86  0.357 #no diff bw herbs in range
-# 6 Herbivore:Defense Native        1      76     0.168 0.683
-
-tidy(joint_tests(old_IC_prop.lmer, by = "Herbivore"))
-# # A tibble: 6 × 6
-# term          Herbivore  num.df den.df statistic p.value
-# <chr>         <chr>       <dbl>  <dbl>     <dbl>   <dbl>
-#   1 Range         Soybean         1     76     0     1.00
-# 2 Range         Velvetbean      1     76     0     1
-# 3 Defense       Soybean         1     76     0.053 0.818
-# 4 Defense       Velvetbean      1     76     0.559 0.457
-# 5 Range:Defense Soybean         1     76     3.27  0.0747 #marginal in the interaction --
-# 6 Range:Defense Velvetbean      1     76     9.89  0.00237 # strong difference in the interaction for velvetbean: to the extent we see significant difference in the interaction, it seems to be more driven by the velvetbean caterpillar than the looper
-
-leveneTest((Proportion) ~ Range, data = subset(ConstVInduc2, Defense == "Const")) #  checking the variances
-
-
-leveneTest((Proportion) ~ Range, data = subset(ConstVInduc2, Defense == "Induced"))
-
-## ======== 2022 cafeteria analysis ========
-# create win-loss column in binary
-# winloss column created by subtracting the
-ICpref$win_loss <- ifelse(ICpref$WinnerTest > 0, 1, 0)
-
-# select columns needed for analysis in ICpref data (all induced data)
-ICpref2 <- ICpref %>%
-  select(Plate_number, Invasive_accession, Native_accession, Pair_number, Caterpillar, Replicate, prop_wtmg_Invasive, Prop_wtmg_Native, win_loss)
-
-ICpref2a <- ICpref2 %>%
-  select(Plate_number, Invasive_accession, Native_accession, Pair_number, Caterpillar, Replicate, win_loss)
-
-# names_pattern = "(.*)_accession" removes the "_accession" bit from any matching pattern
-ICpref3a <- ICpref2a %>%
-  pivot_longer(cols = c(Invasive_accession, Native_accession), names_to = "Range", values_to = "Accession", names_pattern = "(.*)_accession")
-
-ICpref2b <- ICpref2 %>%
-  select(Plate_number, Pair_number, Caterpillar, Replicate, prop_wtmg_Invasive, Prop_wtmg_Native, win_loss)
-
-ICpref3b <- ICpref2b %>%
-  pivot_longer(cols = c(prop_wtmg_Invasive, Prop_wtmg_Native), names_to = "Range", names_prefix = "[Pp](.*)_wtmg_", values_to = "ProportionEaten")
-
-ICpref3 <- full_join(ICpref3a, ICpref3b)
-
-# change all values of 1 (100% tissue eaten) to 0.9999999 for analysis
-ICpref3 <- ICpref3 %>%
-  mutate(ProportionEaten = ifelse(ProportionEaten > 0.9999, 0.9999999, ProportionEaten))
-
-ICpref3 <- ICpref3 %>%
-  filter(ProportionEaten > 0)
-
-ICpref3$Replicate <- as.factor(ICpref3$Replicate)
-
-# summarise data. Group_by so we know for each caterpillar and range. Summarise all columns with numeric data and the functions performed are mean and std.error
-ICpref4 <- ICpref3 %>%
-  group_by(Caterpillar, Range) %>%
-  summarise(across(
-    .cols = where(is.numeric),
-    .fns = list(Mean = ~ mean(., na.rm = TRUE), SE = ~ std.error(., na.rm = TRUE)),
-    .names = "{col}_{fn}"
-  ))
-
-# Custom labelling function
-custom_labels <- function(x) {
-  x <- as.character(x) # Ensure the levels are character strings
-  x[x == "soybean"] <- "Soybean Looper" # Change 'soybean' to 'Soybean Looper'
-  x[x == "velvetbean"] <- "Velvetbean Caterpillar" # Change 'velvetbean' to 'Velvetbean Caterpillar'
-  # Custom labelling function
-  x[x == "Invasive"] <- "Familiar" # Change 'Invasive' to 'Familiar'
-  x[x == "Native"] <- "Unfamiliar" # Change 'Native' to 'Unfamiliar'
-  return(x)
-}
-
-ICpref_wl.glmer <- glmer(win_loss ~ Range * Caterpillar + (1 | Pair_number), family = binomial(link = logit), ICpref3)
-
-Anova(ICpref_wl.glmer)
-# Analysis of Deviance Table (Type II Wald chisquare tests)
-#
-# Response: win_loss
-# Chisq Df Pr(>Chisq)
-# Range             0.0021  1     0.9638
-# Caterpillar       0.7317  1     0.3923
-# Range:Caterpillar 0.0010  1     0.9742
-
-ICpref_prop.lmer <- lmer(ProportionEaten ~ Range * Caterpillar + (1 | Pair_number), data = ICpref3)
-
-Anova(ICpref_prop.lmer)
-# Analysis of Deviance Table (Type II Wald chisquare tests)
-#
-# Response: ProportionEaten
-# Chisq Df Pr(>Chisq)
-# Range              3.0604  1    0.08022 .  # range is marginally significant
-# Caterpillar       26.3462  1  2.854e-07 *** #caterpillar type is significant for amount eaten
-#   Range:Caterpillar  1.3939  1    0.23775
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 # ========= Correlation analysis ========
 
@@ -1501,5 +1506,3 @@ head(combined_data)
 
 # Optionally, save this combined dataframe to a CSV file
 write.csv(combined_data, "Constitutive_Inducibility_CombinedData.csv", row.names = FALSE)
-
-
