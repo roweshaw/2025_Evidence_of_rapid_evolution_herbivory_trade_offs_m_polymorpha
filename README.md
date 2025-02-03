@@ -4,15 +4,28 @@ This repository contains all of the data files, code, and metadata associated wi
 
 This paper has been submitted as a manuscript to Ecology and Evolution (Wiley) and is awaiting reviews. 
 
-The data processing and analysis was performed in R using version 4.4.1. Spreadsheets were formatted using LibreOffice and Google Docs; users may experience some formatting or incompatibility issues when attempting to open in a new Excel version.
+**Software information and versions:**
+- The data processing and analysis was performed in R using version 4.4.2.
+- The following packages  (version in parentheses) were used:
+-   broom(1.0.7)
+-   car(3.1-3)
+-   cocor(1.1-4)
+-   corrplot(0.95)
+-   cowplot(1.1.3)
+-   DHARMa(0.4.7)
+-   emmeans(1.10.6)
+-   Hmisc(5.2-1)
+-   lme4(1.1-35.5)
+-   lmerTest(0.9-40)
+-   patchworkk(1.3.0)
+-   plotrix(3.8-4)
+-   RcmdrMisc(2.9-1)
+-   tidyverse(2.0.0)
+- Spreadsheets were formatted using LibreOffice and Google Docs; users may experience some formatting or incompatibility issues when attempting to open in a new Excel version.
 
-**The IvsC_all_code.R file contains the following:**
+**IvsC_all_code.R** file contains the following:
 - Rscript file to reproduce the data cleaning, analysis, and figures that are presented in the manuscript.
 
-**The figures folder contains PDF versions of all of the figures published in the manuscript**
+Figures and tables are named as they appear in the paper. Files begin with name (e.g. Figure1_).
 
-**The tables folder contains 2 tables:**
-- The results of the statistical analysis can be found in Table 1.
-- The accession information for each of the experiments can be found in Table 2.
-
-**The data folder** contains the processed data that is to be used with the scripts. Processed indicates that it was reformatted or cleaned up before porting to R. 
+The **data** folder contains the processed data that is to be used with the scripts. Processed indicates that it was reformatted or cleaned up before porting to R. 
