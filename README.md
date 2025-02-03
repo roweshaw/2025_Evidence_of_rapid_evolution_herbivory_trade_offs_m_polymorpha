@@ -33,9 +33,12 @@ Additional software notes that may help future users:
 **IvsC_all_code.R** file contains the following:
 - Rscript file to reproduce the data cleaning, analysis, and figures that are presented in the manuscript.
 
-## Data and Figures
-### Figures and Tables
-Figures and tables are named as they appear in the paper. Files begin with name (e.g. Figure1_).
+## Folders
+### Figures
+Figures are named as they appear in the paper. Files begin with name (e.g. Figure1_).
+
+### Tables
+Tables are named as they appear in the paper. Note: Table 2 is a spreadsheet. 
 
 ### Data
-Data files here contain the processed data that is to be used with the scripts. Processed indicates that it was reformatted or cleaned up before porting to R. 
+Data files here contain the processed data that is to be used with the scripts. Processed indicates that it was reformatted or cleaned up before porting to R. Please see the README file in the Data folder for additional information.
