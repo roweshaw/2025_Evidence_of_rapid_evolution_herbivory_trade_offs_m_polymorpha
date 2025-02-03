@@ -1,20 +1,21 @@
-#I vs C, combined all and cleaned up for final analyses Shawna Rowe 10-Jan-2024
+#I vs C, combined all and cleaned up for final analyses Shawna Rowe 10-Jan-2025
 # ========  Packages  ===========
-library(tidyverse) # -
-library(lme4) #-
-library(lmerTest) #- stats (pval)
-library(emmeans) #-
-library(plotrix) #-plotting correlations
-library(car) #- stats
-library(cocor) #-
-library(Hmisc) #-helper functions (google)
-library(RcmdrMisc) #-helper functions (google)
-library(corrplot) #-
-library(DHARMa) #-
-library(broom) #-gives you output stuff for anovas 
-library(cowplot) #-
+library(broom) 
+library(car) 
+library(cocor) 
+library(corrplot) 
+library(cowplot)
+library(DHARMa) 
+library(emmeans) 
+library(Hmisc) 
+library(lme4) 
+library(lmerTest) 
 library(patchwork)
-# ==== Datasets needed ====
+library(plotrix) 
+library(RcmdrMisc)
+library(tidyverse) 
+
+# ==== Datasets needed for protein analysis ====
 ProteinDS <- read.csv("data/processed/ProteinData22Feb2017_edit_10jan24.csv") # first batch of protein data
 ProteinNew <- read.csv("data/processed/ProteinAbsorbanceData.csv", header = TRUE, stringsAsFactors = FALSE) # second bath of protein data
 PODDS <- read.csv("data/processed/WSU_PODfiles11Sept2017.csv") # Peroxidase
@@ -38,8 +39,8 @@ plot.mean <- function(x) {
   return(c(y = m, ymin = ymin, ymax = ymax))
 }
 
-# ========  Protein analysis ===========
-## ======== 2017 Protein Data analysis ========
+# ======== Protein Data analysis ========
+## ======= First ========
 ProteinDS$Hour <- factor(ProteinDS$Hour, levels = c("0hr", "4hr", "24hr"))
 ProteinDS$Defense <- ifelse(ProteinDS$Time == 0, "Constitutive", "Induced")
 ProteinDS$Range <- as.factor(ProteinDS$Range)
@@ -140,268 +141,6 @@ anova(Pro.mod, Pro.mod2) # comparing the two models
 # Pro.mod2    5 1687.7 1711.5 -838.87   1677.7                     
 # Pro.mod     6 1689.6 1718.1 -838.79   1677.6 0.1569  1      0.692
 
-#ProteinDS inclusive of 4 hr for graphing
-(Pro_2017_with4hr_fig <- ggplot(ProteinDS, aes(x = Hour, y = Protein)) +
-    stat_summary(fun.data = plot.mean, geom = "errorbar", width = 0.5) +
-    facet_wrap(~Range) +
-    labs(title = "Induction of Protein Expression Post Herbivory Treatment", y = "Protein content (mg/g FW)") +
-    theme_bw() +
-    scale_colour_grey() +
-    theme(strip.text.x = element_text(color = "black", size = 12, face = "bold")) +
-    theme(legend.position = "none") +
-    theme(strip.text = element_text(size = 12, face = "bold")) +
-    theme(axis.text = element_text(size = 12)) +
-    theme(axis.title.x = element_blank()) +
-    theme(axis.title = element_text(size = 14)) +
-    theme(plot.title = element_text(size = 16)) +
-    theme(plot.title = element_text(hjust = 0.5)))
-
-## ======== 2022 Protein Data analysis ======== 
-#second batch of protein data
-
-ProteinNew <- ProteinNew %>%
-  pivot_longer(
-    cols = c(number_induced, conc.wt_induced, number_constit, conc.wt_constit),
-    names_to = c(".value", "type"),
-    names_sep = "_",
-    values_drop_na = TRUE
-  )
-
-ProteinNew <- ProteinNew %>% filter(!is.na(number) & !is.na(conc.wt))  # Remove rows with NA in 'number' or 'conc.wt'
-names(ProteinNew)[names(ProteinNew) == "type"] <- "Hour" #rename row to match 2017 format
-ProteinNew <- ProteinNew %>% 
-  mutate(Hour = case_when(
-    Hour == "constit" ~ "0hr",
-    Hour == "induced" ~ "24hr",
-    TRUE ~ as.factor(Hour)
-  )) #remap constitutive to 0 and induced to 24
-
-ProteinNew$Hour <- factor(ProteinNew$Hour, levels = c("0hr", "24hr"))
-ProteinNew$Defense <- ifelse(ProteinNew$Hour == "0hr", "Constitutive", "Induced")
-ProteinNew$Range <- as.factor(ProteinNew$Range)
-ProteinNew$Defense <- as.factor(ProteinNew$Defense)
-ProteinNew$replicate <- as.factor(ProteinNew$replicate)
-ProteinNew$number <- as.factor(ProteinNew$number)
-names(ProteinNew)[names(ProteinNew) == "accession"] <- "Genotype" #rename row to match 2017 format
-ProteinNew$Genotype <- as.factor(ProteinNew$Genotype)
-names(ProteinNew)[names(ProteinNew) == "conc.wt"] <- "Protein" #rename row to match 2017 format
-ProteinNew$Protein <- as.numeric(ProteinNew$Protein)
-
-ProNew.mod <- lmer(log(Protein) ~ Range * Defense + (1|Genotype), ProteinNew)
-anova(ProNew.mod)
-# Type III Analysis of Variance Table with Satterthwaite's method
-#                Sum Sq Mean Sq NumDF DenDF F value    Pr(>F)    
-# Range         0.02132 0.02132     1    32  0.2998    0.5878    
-# Defense       1.18856 1.18856     1   168 16.7142 6.723e-05 ***
-# Range:Defense 0.06311 0.06311     1   168  0.8875    0.3475    
-# ---
-# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-emmeans(ProNew.mod, pairwise ~ Defense | Range)
-# $emmeans
-# Range = Invasive:
-#   Defense      emmean     SE   df lower.CL upper.CL
-# Constitutive   10.7 0.0679 44.1     10.5     10.8
-# Induced        10.9 0.0679 44.1     10.7     11.0
-# 
-# Range = Native:
-#   Defense      emmean     SE   df lower.CL upper.CL
-# Constitutive   10.8 0.0679 44.1     10.6     10.9
-# Induced        10.9 0.0679 44.1     10.7     11.0
-# 
-# Degrees-of-freedom method: kenward-roger 
-# Results are given on the log (not the response) scale. 
-# Confidence level used: 0.95 
-# 
-# $contrasts
-# Range = Invasive:
-#   contrast               estimate     SE  df t.ratio p.value
-# Constitutive - Induced   -0.188 0.0528 168  -3.557  0.0005
-# 
-# Range = Native:
-#   contrast               estimate     SE  df t.ratio p.value
-# Constitutive - Induced   -0.117 0.0528 168  -2.225  0.0274
-# 
-# Degrees-of-freedom method: kenward-roger 
-# Results are given on the log (not the response) scale. 
-
-#facet
-ggplot(ProteinNew, aes(x = Hour, y = Protein, fill = Hour)) + stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.25) + facet_wrap(~ Range) + labs(title = "2022 Protein Data", y = "Protein content (mg/g FW)") + theme_bw() + scale_colour_grey() + theme(strip.text.x = element_text(color = "black", size = 12, face = "bold")) + theme(legend.position = "none") + theme(strip.text.x = element_text(size = 12, face = "bold")) + theme(axis.text = element_text(size = 12)) + theme(axis.title = element_text(size = 14)) + theme(plot.title = element_text(size = 16)) + theme(plot.title = element_text(hjust = 0.5))
-
-tidy(joint_tests(ProNew.mod, by = "Defense"))
-# # A tibble: 2 × 6
-# term  Defense      num.df den.df statistic p.value
-# <chr> <chr>         <dbl>  <dbl>     <dbl>   <dbl>
-#   1 Range Constitutive      1   44.1     0.758   0.389
-# 2 Range Induced           1   44.1     0.019   0.891
-
-tidy(joint_tests(ProNew.mod, by = "Range"))
-# # A tibble: 2 × 6
-# term    Range    num.df den.df statistic  p.value
-# <chr>   <chr>     <dbl>  <dbl>     <dbl>    <dbl>
-#   1 Defense Invasive      1    168     12.7  0.000488 # differences seem stronger in the invasive populations relative to the native 
-# 2 Defense Native        1    168      4.95 0.0274  
-
-leveneTest(log(Protein) ~ Range, data = subset(ProteinNew, Defense == "Constitutive")) #  checking the variances
-# Levene's Test for Homogeneity of Variance (center = median)
-#        Df F value Pr(>F)
-# group   1  1.5827 0.2113
-#       100 
-
-leveneTest(log(Protein) ~ Range, data = subset(ProteinNew, Defense == "Induced"))
-# Levene's Test for Homogeneity of Variance (center = median)
-#        Df F value Pr(>F)
-# group   1  1.7211 0.1926
-#       100      
-
-##======== Combined Protein data analysis  ========
-#add year indicator to denote which dataset the data is from
-ProteinDS$Year <- "2017"
-ProteinNew$Year <- "2022"
-
-names(ProteinDS)[names(ProteinDS) == "Replicate"] <- "replicate" # rename column for merging
-ProteinDS$replicate <- as.factor(ProteinDS$replicate)
-names(ProteinDS)[names(ProteinDS) == "Well"] <- "number" # rename column for merging
-ProteinDS <- ProteinDS %>%
-  select(Genotype, Range, Hour, Protein, Defense, replicate, number, Year) # select columns for merging
-ProteinDS$Genotype <- as.factor(ProteinDS$Genotype)
-ProteinDS$number <- as.factor(ProteinDS$number)
-
-ProteinAll <- full_join(ProteinDS, ProteinNew, by = c("Genotype", "Hour", "Protein", "Range", "Defense", "replicate", "number", "Year"))
-# relabel defense col value to "NA" for 4hr data
-ProteinAll <- ProteinAll %>%
-  mutate(Defense = case_when(
-    Hour == "0hr" ~ "Constitutive",
-    Hour == "24hr" ~ "Induced",
-    TRUE ~ NA
-  ))
-
-#save ProteinAll as csv
-write.csv(ProteinAll, "data/processed/ProteinAll.csv", row.names = FALSE)
-# convert Defense to factor
-ProteinAll$Defense <- as.factor(ProteinAll$Defense)
-
-#look for differences in response variable when comparing the results from the two different years
-#subset data by range and check for significance within the invasive vs native 
-ProteinAll_invasive <- ProteinAll %>%
-  filter(Range == "Invasive")
-
-ProteinAll_native <- ProteinAll %>%
-  filter(Range == "Native")
-
-pro_all_invasive.mod <- lmer(log(Protein) ~ Year * Defense + (1 | Genotype), ProteinAll_invasive)
-anova(pro_all_invasive.mod)
-# Type III Analysis of Variance Table with Satterthwaite's method
-#              Sum Sq Mean Sq NumDF   DenDF F value   Pr(>F)    
-# Year         1.3114  1.3114     1  32.239  9.1353 0.004884 ** 
-# Defense      1.2554  1.2554     1 211.799  8.7450 0.003457 ** 
-# Year:Defense 6.4296  6.4296     1 211.799 44.7888 1.93e-10 ***
-# ---
-# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-pro_all_native.mod <- lmer(log(Protein) ~ Year * Defense + (1 | Genotype), ProteinAll_native)
-anova(pro_all_native.mod)
-# Type III Analysis of Variance Table with Satterthwaite's method
-#              Sum Sq Mean Sq NumDF  DenDF F value    Pr(>F)    
-# Year         0.0462  0.0462     1 143.74  0.1358    0.7130    
-# Defense      2.2823  2.2823     1 717.25  6.7068    0.0098 ** 
-# Year:Defense 6.8164  6.8164     1 717.25 20.0305 8.862e-06 ***
-# ---
-# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-#lmer with ranges combined 
-Pro_all.mod <- lmer(log(Protein) ~ Range * Defense + (1 | Genotype), ProteinAll)
-anova(Pro_all.mod)
-# Type III Analysis of Variance Table with Satterthwaite's method
-#                Sum Sq Mean Sq NumDF  DenDF F value    Pr(>F)    
-# Range          0.1403  0.1403     1 131.31  0.4543   0.50147    
-# Defense       12.6161 12.6161     1 941.11 40.8475 2.586e-10 ***
-# Range:Defense  1.5256  1.5256     1 941.11  4.9394   0.02649 *  
-# ---
-# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-#boxplot of x variable = range, fill by year, facet by defense. Protein being the response variable 
-ggplot(ProteinAll, aes(x = Range, y = Protein)) + geom_boxplot() + facet_wrap(~ Defense) + labs(title = "Protein Content by Range and Year", y = "Protein content (mg/g FW)") + theme_bw() + scale_fill_grey() + theme(strip.text.x = element_text(color = "black", size = 12, face = "bold")) + theme(strip.text.x = element_text(size = 12, face = "bold")) + theme(strip.text.y = element_text(size = 12)) + theme(axis.text = element_text(size = 12)) + theme(axis.title = element_text(size = 14)) + theme(plot.title = element_text(size = 16)) + theme(plot.title = element_text(hjust = 0.5))
-
-Pro_all.mod <- lmer(log(Protein) ~ Range * Defense + (1 | Genotype), ProteinAll)
-
-
-Pro_all_year.mod <- lmer(log(Protein) ~ Range * Defense + (1 | Genotype), ProteinAll)
-
-ProteinAll <- filter(ProteinAll, Hour != "4hr")
-
-Pro_all.mod2 <- lmer(log(Protein) ~ Range * Defense + (1 | Genotype), ProteinAll)
-anova(Pro_all.mod2)
-# Type III Analysis of Variance Table with Satterthwaite's method
-#               Sum Sq Mean Sq NumDF  DenDF F value    Pr(>F)
-# Range         0.0242  0.0242     1 122.74  0.0820    0.7751
-# Defense       4.9947  4.9947     1 643.93 16.9312 4.379e-05 ***
-# Range:Defense 0.5317  0.5317     1 643.93  1.8023    0.1799
-# ---
-# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-IC.emm <- emmeans(Pro_all.mod2, ~ Defense * Range)
-tidy(contrast(IC.emm, "consec", simple = "each", combine = TRUE, adjust = "mvt"))
-# # A tibble: 4 × 9
-# contrast               null.value Range    Defense      estimate std.error    df statistic adj.p.value
-# <chr>                       <dbl> <chr>    <chr>           <dbl>     <dbl> <dbl>     <dbl>       <dbl>
-#   1 Induced - Constitutive          0 Invasive .             -0.124     0.0772  644.    -1.61  0.322
-# 2 Induced - Constitutive          0 Native   .             -0.244     0.0455  646.    -5.38  0.000000352 # significant for native when combined
-# 3 Native - Invasive               0 .        Constitutive   0.0307    0.112   174.     0.274 0.991
-# 4 Native - Invasive               0 .        Induced       -0.0896    0.112   173.    -0.799 0.827
-
-leveneTest(log(Protein) ~ Range, data = subset(ProteinAll, Defense == "Constitutive"))
-# Levene's Test for Homogeneity of Variance (center = median)
-#        Df F value Pr(>F)
-# group   1  1.3399 0.2478
-#       382
-# ---
-# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-leveneTest(log(Protein) ~ Range, data = subset(ProteinAll, Defense == "Induced"))
-# Levene's Test for Homogeneity of Variance (center = median)
-#        Df F value Pr(>F)
-# group   1  1.3168 0.2519
-#       385
-# ---
-# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-# Filter data for 0hr (Constitutive levels only)
-ProteinConstitutive <- ProteinAll %>%
-  filter(Hour == "0hr")
-
-# newest facet graph
-protein_new <- ggplot(ProteinAll, aes(x = Hour, y = Protein, fill = Hour)) +
-  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.25) +
-  facet_wrap(~Range, labeller = labeller(Range = c(Invasive = "Familiar", Native = "Unfamiliar"))) +
-  labs(title = "Protein Content Induction", x = NULL, y = "Protein content (mg/g FW)") +
-  theme_bw() +
-  scale_colour_grey() +
-  theme(strip.text.x = element_text(color = "black", size = 12, face = "bold")) +
-  theme(legend.position = "none") +
-  theme(strip.text = element_text(size = 12, face = "bold")) +
-  theme(axis.text = element_text(size = 12)) +
-  theme(axis.title = element_text(size = 14)) +
-  theme(plot.title = element_text(size = 16)) +
-  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank())
-protein_new
-
-# ProteinAll inclusive of 4hr for graphing
-ProteinAll_all <- full_join(ProteinDS, ProteinNew, by = c("Genotype", "Hour", "Protein", "Range", "Defense", "replicate", "number"))
-
-(Pro_all_with4hr_fig <- ggplot(ProteinAll_all, aes(x = Hour, y = Protein)) +
-  stat_summary(fun.data = plot.mean, geom = "errorbar", width = 0.5) +
-  facet_wrap(~Range) +
-  labs(title = "Induction of Protein Expression Post Herbivory Treatment", y = "Protein content (mg/g FW)") +
-  theme_bw() +
-  scale_colour_grey() +
-  theme(strip.text.x = element_text(color = "black", size = 12, face = "bold")) +
-  theme(legend.position = "none") +
-  theme(strip.text = element_text(size = 12, face = "bold")) +
-  theme(axis.text = element_text(size = 12)) +
-  theme(axis.title = element_text(size = 14)) +
-  theme(plot.title = element_text(size = 16)) +
-  theme(plot.title = element_text(hjust = 0.5)))
 
 ## ======== POD analysis from 2018 data ======
 PODDS$Hour <- factor(PODDS$Hour, levels = c("0hr", "4hr", "24hr"))
@@ -429,22 +168,6 @@ tidy(joint_tests(POD_hour.mod, by = "Hour"))
 #   1 Range 0hr        1   150.     0       0.987
 # 2 Range 4hr        1   150.     2.36    0.126
 # 3 Range 24hr       1   150.     0.001   0.979
-
-(joint_tests(PPO.mod, by = "Range"))
-# # A tibble: 3 × 6
-# term  Hour  num.df den.df statistic p.value
-# <chr> <chr>  <dbl>  <dbl>     <dbl>   <dbl>
-#   1 Range 0hr        1   150.     0       0.987
-# 2 Range 4hr        1   150.     2.36    0.126
-# 3 Range 24hr       1   150.     0.001   0.979
-# > (joint_tests(PPO.mod, by = "Range"))
-# Range = Invasive:
-#   model term df1    df2 F.ratio p.value
-# Defense      1 758.07   9.167  0.0025
-# 
-# Range = Native:
-#   model term df1    df2 F.ratio p.value
-# Defense      1 759.97  26.477  <.0001
 
 ## ======== PPO analysis from 2018 ======
 PPODS$Hour <- factor(PPODS$Hour, levels = c("0hr", "4hr", "24hr"))
@@ -480,14 +203,14 @@ tidy(joint_tests(PPO.mod, by = "Range"))
 #   1 Defense Invasive      1   758.      9.17 0.00255
 # 2 Defense Native        1   760.     26.5  0.000000340
 
-#---- Figure 3: Protein, POD, and PPO induction ----
+#---- Figure 4: Protein, POD, and PPO induction ----
 
 #facet for Protein induction
 (Pro_plot <- ggplot(ProteinDS, aes(x = Hour, y = Protein, fill = Hour)) + 
    stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.25) + 
    stat_summary(fun = mean, geom = "point", shape = 21, size = 2, color = "black", fill = "black") +  # Change fill to black
    facet_wrap(~Range, labeller = labeller(Range = c(Invasive = "Familiar", Native = "Unfamiliar"))) + 
-   labs(title = "Protein Content Induction", y = "Protein content (mg/g FW)") + 
+   labs(title = "Protein Content Induction", y = "Protein (mg/g FW)") + 
    theme_bw() + 
    scale_colour_grey() + 
    theme(strip.text.x = element_text(color = "black", size = 16, face = "bold")) + 
@@ -531,9 +254,11 @@ tidy(joint_tests(PPO.mod, by = "Range"))
                 theme(plot.title = element_text(size = 18)) +
                 theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank())))
 
-(figure3 <- Pro_plot / POD_plot / PPO_plot + plot_annotation(tag_levels = "A") & theme(plot.tag = element_text(size = 18)))
+(figure4 <- Pro_plot / POD_plot / PPO_plot + plot_annotation(tag_levels = "A") & theme(plot.tag = element_text(size = 18)))
 ggsave("AssayFig14august24_all_bioc.jpg", figure3, width = 2900, height = 3200, units = "px", dpi = 300)
 
+# save in E and E preferred format. 600 dpi PDF with an 1800 px canvas size 
+ggsave("Figure4_assayFig14august24_all_bioc.pdf", figure3, width = 5200, height = 6000, units = "px", dpi = 600)
 # ========cafeteria/ preference analysis ======== 
 ## ==== 2017 cafeteria assay analysis ====
 # note: newer teria assay analysis should be run first.
@@ -565,36 +290,6 @@ ConstRange3 <- ConstRange2 %>%
     .names = "{col}_{fn}"
   ))
 
-#Plot figure 2: herbivore preference for constitutive plants native v invasive using ConstRange2
-(const_plot <- ggplot(ConstRange3, aes(x = Range, y = Proportion_Mean)) +
-  geom_point(position = position_dodge(width = 0.35), shape = 21, size = 2, stroke = 0) +
-  geom_errorbar(aes(ymin = Proportion_Mean - Proportion_SE, ymax = Proportion_Mean + Proportion_SE, color = Range, width = 0.2), position = position_dodge(width = 0.35)) +
-  guides(size = "none") +
-  theme_bw() +
-  facet_wrap(~Herbivore) +
-  labs(
-    title = "Feeding Preference for Constitutive Plants",
-    y = "Proportion Consumed",
-    x = "",
-    color = "Defense"
-  ) +
-  scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
-  facet_wrap(~ Herbivore, labeller = as_labeller(c("Soybean" = "Soybean Looper", "Velvetbean" = "Velvetbean Caterpillar"))) +
-  ylim(0.25, 0.75) + # Corrected ylim placement
-  theme(
-    strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
-    axis.text.x = element_text(size = 16),
-    axis.text.y = element_text(size = 16),
-    axis.title.x = element_text(size = 20),
-    axis.title.y = element_text(size = 20),
-    plot.title = element_text(size = 22, hjust = 0.5),
-    #remove figure legend
-    legend.position = "none",
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16), panel.grid.major = element_blank(), panel.grid.minor = element_blank()
-  )
-)
-
 write.table(ConstRange2, file = "~/Desktop/ConstRange_long-2024-04-28.csv", sep = ",", row.names = F)
 
 ConstVInduc <- ConstVInduc %>%
@@ -616,7 +311,7 @@ ConstVInduc3 <- ConstVInduc2 %>%
     .names = "{col}_{fn}"
   ))
 
-#Figure : graph proportion eaten by range with caterpillar facet
+#Figure 3: graph proportion eaten by range with caterpillar facet
 (old_IC_proportion_range <- ggplot(ConstVInduc3, aes(x = Range, y = Proportion_Mean, color = Defense)) +
     geom_point() +
     geom_errorbar(aes(ymin = Proportion_Mean - Proportion_SE, ymax = Proportion_Mean + Proportion_SE, width = 0.25)) +
@@ -651,7 +346,10 @@ ConstVInduc3 <- ConstVInduc2 %>%
 )
 ggsave("Const2017_cafeteria_aug2024.jpg", old_IC_proportion_range, width = 3300, height = 2100, units = "px", dpi = 300)
 
-#Induced2022 cafeteria 
+# save in E and E format. 600 dpi PDF with an min 1800 px canvas size
+ggsave("Figure3_const2017_cafeteria_aug2024.pdf", old_IC_proportion_range, width = 6600, height = 4200, units = "px", dpi = 600)
+
+# ====== Induced2022 cafeteria ======
 # create win-loss column in binary
 # winloss column created by subtracting the
 ICpref$win_loss <- ifelse(ICpref$WinnerTest > 0, 1, 0)
@@ -713,7 +411,7 @@ ICpref4 <- ICpref3 %>%
     )
 )
 
-##---- Panel figure for Cafeteria data Oct24 ----
+##---- Figure 2: Panel figure for Cafeteria data Oct24 ----
 #graph proportion eaten by each caterpillar within each range. Facet by range and have the x-axis have the herbivore oct24
 (ICpref_proportion_caterpillar <- ggplot(ICpref4, aes(x = Caterpillar, y = ProportionEaten_Mean)) +
     geom_point() +
@@ -788,6 +486,8 @@ ICpref4 <- ICpref3 %>%
 (cafeteria_panel <- cafeteria_plot_const / cafeteria_plot_induc / ICpref_proportion_caterpillar + plot_annotation(tag_levels = "A") & theme(plot.tag = element_text(size = 16)))
 
 ggsave("cafeteria_panel_oct24.jpg", cafeteria_panel, width = 2900, height = 3200, units = "px", dpi = 300)
+## save in E and E format. 600 dpi PDF with a min 1800 px canvas size
+ggsave("Figure2_cafeteria_panel_oct24.pdf", cafeteria_panel, width = 5200, height = 6000, units = "px", dpi = 600)
 
 old_IC_prop.lmer <- lmer(Proportion ~ Range * Herbivore * Defense + (1 | Herbivore / Pair), data = ConstVInduc2)
 old_IC_prop2.lm <- lm(Proportion ~ Range * Herbivore * Defense, data = ConstVInduc2)
@@ -903,131 +603,6 @@ custom_labels <- function(x) {
   x[x == "Native"] <- "Unfamiliar" # Change 'Native' to 'Unfamiliar'
   return(x)
 }
-
-# graph proportion eaten by range with caterpillar facet -- winning figure
-(ICpref_proportion_range <- ggplot(ICpref4, aes(x = Range, y = ProportionEaten_Mean)) +
-  labs(title = "Proportion of Leaf Tissue Eaten by Herbivore Range", x = expression(italic("M. polymorpha") ~ "Range"), y = "Proportion Eaten") +
-  geom_point() +
-  geom_errorbar(aes(ymin = ProportionEaten_Mean - ProportionEaten_SE, ymax = ProportionEaten_Mean + ProportionEaten_SE, width = 0.25)) +
-  theme_bw() +
-  facet_wrap(~Caterpillar, labeller = as_labeller(custom_labels)) +
-  ylim(0.75, 0.95) +
-  scale_color_grey() +
-  theme(
-    strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
-    axis.text = element_text(size = 16),
-    axis.title = element_text(size = 20),
-    plot.title = element_text(size = 22, hjust = 0.5),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16), panel.grid.major = element_blank(), panel.grid.minor = element_blank()
-  )
-)
-
-#saving figure 2: oct 2024
-ggsave("ICpref_proportion_range_oct2024.jpg", ICpref_proportion_range, width = 3300, height = 2100, units = "px", dpi = 300)
-
-ICpref_proportion_range
-# proportion eaten with no facet and colored by caterpillar type
-(ICpref_proportion_range_nofacet <- ggplot(ICpref4, aes(x = Range, y = ProportionEaten_Mean, color = Caterpillar)) +
-  labs(title = "Proportion of Leaf Tissue Eaten by Herbivore Range", x = "Range", y = "Proportion Eaten") +
-  geom_point() +
-  geom_errorbar(aes(ymin = ProportionEaten_Mean - ProportionEaten_SE, ymax = ProportionEaten_Mean + ProportionEaten_SE, width = 0.2)) +
-  theme_light() +
-  theme(axis.text.x = element_text(size = 12, hjust = 0.5)) +
-  ylim(0.75, 1) +
-  scale_color_manual(values = c("soybean" = "#E64A00", "velvetbean" = "#14C7BA")) + # Specify colorblind-friendly colors
-  theme_bw() +
-  facet_wrap(~Caterpillar, labeller = as_labeller(custom_labels)) +
-  ylim(0.75, 0.95) +
-  scale_color_grey() +
-  theme(
-    strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
-    axis.text = element_text(size = 16),
-    axis.title = element_text(size = 20),
-    plot.title = element_text(size = 22, hjust = 0.5),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16), panel.grid.major = element_blank(), panel.grid.minor = element_blank()
-  ))
-
-# proportion eaten with no facet but x-axis is caterpillar and color fill is range
-(ICpref_proportion_caterpillar <- ggplot(ICpref4, aes(x = Caterpillar, y = ProportionEaten_Mean, fill = Range)) +
-  labs(title = "Proportion of Unfamiliar vs. Familiar Tissue Consumed", y = "Proportion") +
-  geom_point(position = position_dodge(width = 0.35), shape = 21, size = 3, stroke = 0) +
-  geom_errorbar(aes(ymin = ProportionEaten_Mean - ProportionEaten_SE, ymax = ProportionEaten_Mean + ProportionEaten_SE, color = Range, width = 0.2), position = position_dodge(width = 0.35)) +
-  ylim(0.75, 1) +
-  scale_color_manual(values = c("Invasive" = "#E64A00", "Native" = "#14C7BA")) + # Specify colorblind-friendly colors
-  scale_x_discrete(labels = c("soybean" = "Soybean Looper", "velvetbean" = "Velvetbean Caterpillar")) +
-  theme_bw() +
-  theme(
-    strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
-    axis.text = element_text(size = 16),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 20),
-    plot.title = element_text(size = 22, hjust = 0.5),
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16), panel.grid.major = element_blank(), panel.grid.minor = element_blank()
-  )
-)
-
-#Figure 2 proportion eaten with facet to match formatting of figure 3
-# proportion eaten with x-axis as range and faceting by herbivore
-# proportion eaten with x-axis as range and faceting by herbivore
-(ICpref_proportion_range <- ggplot(ICpref4, aes(x = Range, y = ProportionEaten_Mean, fill = Range)) +
-  labs(title = "Proportion of Unfamiliar vs. Familiar Tissue Consumed", y = "Proportion Consumed") +
-  geom_point(position = position_dodge(width = 0.35), shape = 21, size = 3, stroke = 0) +
-  geom_errorbar(aes(ymin = ProportionEaten_Mean - ProportionEaten_SE, ymax = ProportionEaten_Mean + ProportionEaten_SE, color = Range, width = 0.2), position = position_dodge(width = 0.35)) +
-  ylim(0.75, 1) +
-  scale_color_manual(values = c("Invasive" = "#E64A00", "Native" = "#14C7BA"), 
-                     labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) + # Specify colorblind-friendly colors and relabel legend
-  scale_fill_manual(values = c("Invasive" = "#E64A00", "Native" = "#14C7BA"), 
-                    labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) + # Ensure fill colors match and relabel legend
-  scale_x_discrete(labels = c("Invasive" = "Familiar", "Native" = "Unfamiliar")) +
-  facet_wrap(~ Caterpillar, labeller = as_labeller(c("soybean" = "Soybean Looper", "velvetbean" = "Velvetbean Caterpillar"))) +
-  theme_bw() +
-  theme(
-    strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
-    axis.text.x = element_text(size = 16),
-    axis.text.y = element_text(size = 16),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 20),
-    plot.title = element_text(size = 22, hjust = 0.5),
-    legend.position = "none",
-    legend.title = element_text(size = 18),
-    legend.text = element_text(size = 16),
-    panel.grid.major = element_blank(), 
-    panel.grid.minor = element_blank()
-  )
-)
-
-ggsave("range_pref_cafeteria_june2024.jpg", ICpref_proportion_range, width = 3300, height = 2100, units = "px", dpi = 300)
-
-
-
-# Display the plot
-print(ICpref_proportion_range)
-
-(ICpref_proportion_caterpillar2 <- ggplot(ICpref4, aes(x = Range, y = ProportionEaten_Mean)) +
-    labs(title = "Proportion of Familiar vs. Unfamiliar Tissue Consumed", x = expression(italic("M. polymorpha") ~ "Range"), y = "Proportion Eaten") +
-    geom_point() +
-    geom_errorbar(aes(ymin = ProportionEaten_Mean - ProportionEaten_SE, ymax = ProportionEaten_Mean + ProportionEaten_SE, width = 0.25)) +
-    theme_bw() +
-    facet_wrap(~Caterpillar, labeller = as_labeller(custom_labels)) +
-    ylim(0.75, 0.95) +
-    scale_color_grey() +
-    theme(
-      strip.text.x = element_text(color = "black", size = 20, hjust = 0.5, face = "bold"),
-      axis.text.x = element_text(size = 16),
-      axis.text.y = element_text(size = 16),
-      axis.title.x = element_text(size = 20),
-      axis.title.y = element_text(size = 20),
-      plot.title = element_text(size = 22, hjust = 0.5),
-      legend.title = element_text(size = 18),
-      legend.text = element_text(size = 16), panel.grid.major = element_blank(), panel.grid.minor = element_blank()
-    )
-)
-ICpref_proportion_range
-
-ggsave("range_pref_cafeteria_june2024.jpg", ICpref_proportion_caterpillar, width = 3300, height = 2100, units = "px", dpi = 300)
 
 ICpref_wl.glmer <- glmer(win_loss ~ Range * Caterpillar + (1 | Pair_number), family = binomial(link = logit), ICpref3)
 
@@ -1887,6 +1462,8 @@ cowplot::plot_grid(ProTradeFig, PodTradeFig, PpoTradeFig,
   rel_heights = c(1.2, 1.2, 1.2)
 ) # Spacing controlled by smaller values for empty plots
 ggsave("Constit_Tradeoff16aug2024.pdf")
+# save in E and E format. Save as a pdf, 600 dpi, min of 1800 px
+ggsave("Figure5_onstit_Tradeoff16aug2024.jpg", width = 1800, units = px, height = 1800, dpi = 600)
 
 # updated combo corr plot
 corr_combo <- plot_grid(ProTradeFig, PodTradeFig, PpoTradeFig, labels = c("A", "B", "C"), align = "v", ncol = 1)
@@ -1898,6 +1475,7 @@ corr_combo2 <- (ProTradeFig / PodTradeFig / PpoTradeFig) +
 
 corr_combo2
 ggsave("Constit_Tradeoff_panel_16aug2024.jpg", corr_combo2, width = 3800, height = 3100, units = "px", dpi = 300)
+ggsave("Figure5_constit_Tradeoff16aug2024.pdf",corr_combo2, width = 5200, height = 5400, units = "px",  dpi = 600)
 
 #---- generate correlations for combined dataframe export ----
 # Adding a new column to each dataframe to indicate the variable type (Protein, POD, or PPO)
@@ -1923,4 +1501,5 @@ head(combined_data)
 
 # Optionally, save this combined dataframe to a CSV file
 write.csv(combined_data, "Constitutive_Inducibility_CombinedData.csv", row.names = FALSE)
+
 
