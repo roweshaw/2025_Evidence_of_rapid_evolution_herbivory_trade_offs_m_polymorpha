@@ -29,10 +29,13 @@ This paper has been submitted as a manuscript to Ecology and Evolution (Wiley) a
 Additional software notes that may help future users:
 - Spreadsheets were formatted using LibreOffice and Google Docs; users may experience some formatting or incompatibility issues when attempting to open in a new Excel version.
 
-## Scripts and Data
+## Scripts
 **IvsC_all_code.R** file contains the following:
 - Rscript file to reproduce the data cleaning, analysis, and figures that are presented in the manuscript.
 
+## Data and Figures
+### Figures and Tables
 Figures and tables are named as they appear in the paper. Files begin with name (e.g. Figure1_).
 
-The **data** folder contains the processed data that is to be used with the scripts. Processed indicates that it was reformatted or cleaned up before porting to R. 
+### Data
+Data files here contain the processed data that is to be used with the scripts. Processed indicates that it was reformatted or cleaned up before porting to R. 
