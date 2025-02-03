@@ -13,7 +13,7 @@ The data processing and analysis was performed in R using version 4.4.1. Spreads
 
 **The figures folder contains PDF versions of all of the figures published in the manuscript**
 
-**The tables folder contains 2 tables:"
+**The tables folder contains 2 tables:**
 - The results of the statistical analysis can be found in Table 1.
 - The accession information for each of the experiments can be found in Table 2.
 
