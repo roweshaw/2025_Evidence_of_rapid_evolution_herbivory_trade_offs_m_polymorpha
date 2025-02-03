@@ -7,7 +7,7 @@ This paper has been submitted as a manuscript to Ecology and Evolution (Wiley) a
 **Software information and versions:**
 - The data processing and analysis was performed in R using version 4.4.2.
 - The following packages  (version in parentheses) were used:
--   broom(1.0.7)
+-     broom(1.0.7)
 -   car(3.1-3)
 -   cocor(1.1-4)
 -   corrplot(0.95)
