@@ -4,10 +4,14 @@ This repository contains all of the data files, code, and metadata associated wi
 
 This paper has been submitted as a manuscript to Ecology and Evolution (Wiley) and is awaiting reviews. 
 
-**Software information and versions:**
+## Software
+
+**R version** used for manuscript:
 - The data processing and analysis was performed in R using version 4.4.2.
+
+**R package versions:**
 - The following packages  (version in parentheses) were used:
--     broom(1.0.7)
+-   broom(1.0.7)
 -   car(3.1-3)
 -   cocor(1.1-4)
 -   corrplot(0.95)
@@ -21,8 +25,11 @@ This paper has been submitted as a manuscript to Ecology and Evolution (Wiley) a
 -   plotrix(3.8-4)
 -   RcmdrMisc(2.9-1)
 -   tidyverse(2.0.0)
+
+Additional software notes that may help future users:
 - Spreadsheets were formatted using LibreOffice and Google Docs; users may experience some formatting or incompatibility issues when attempting to open in a new Excel version.
 
+## Scripts and Data
 **IvsC_all_code.R** file contains the following:
 - Rscript file to reproduce the data cleaning, analysis, and figures that are presented in the manuscript.
 
