@@ -6,10 +6,8 @@ This paper has been submitted as a manuscript to Ecology and Evolution (Wiley) a
 
 The data processing and analysis was performed in R using version 4.4.1. Spreadsheets were formatted using LibreOffice and Google Docs; users may experience some formatting or incompatibility issues when attempting to open in a new Excel version.
 
-**The IvsC_data_scrips folder contains the following:**
-- An Rproject that should be able to run locally on a user's machine
+**The IvsC_all_code.R file contains the following:**
 - Rscript file to reproduce the data cleaning, analysis, and figures that are presented in the manuscript.
-- Processed data to be used by the Rscript  
 
 **The figures folder contains PDF versions of all of the figures published in the manuscript**
 
@@ -17,4 +15,4 @@ The data processing and analysis was performed in R using version 4.4.1. Spreads
 - The results of the statistical analysis can be found in Table 1.
 - The accession information for each of the experiments can be found in Table 2.
 
-
+**The data folder** contains the processed data that is to be used with the scripts. Processed indicates that it was reformatted or cleaned up before porting to R. 
